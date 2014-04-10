@@ -8,7 +8,7 @@ to be installed via standard means (I installed using homebrew on OS X). To
 build:
 
 ```bash
-git clone path.to.this.repository
+git clone git://github.com/cpatrick/SeaCoreExplorer.git
 mkdir SeaCoreExplorer-superbuild
 cd SeaCoreExplorer-superbuild
 cmake ../SeaCoreExplorer
