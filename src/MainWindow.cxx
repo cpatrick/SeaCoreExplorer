@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include <vtkDataObjectToTable.h>
-#include <vtkElevationFilter.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkQtTableView.h>
 #include <vtkRenderer.h>
@@ -22,6 +20,12 @@
 #include <vtkSphereSource.h>
 #include <vtkConeSource.h>
 #include <vtkSmartPointer.h>
+
+#include <QFileDialog>
+#include <QFile>
+#include <QDebug>
+
+#include "QSeaCoreTableModel.h"
 
 #include "MainWindow.h"
 
@@ -52,11 +56,37 @@ MainWindow::MainWindow()
   // VTK/Qt wedded
   this->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
 
-  // Set up action signals and slots
-  connect(this->actionExit, SIGNAL(triggered()), this, SLOT(slotExit()));
+  // Setup Model
+  QSeaCoreTableModel* model = new QSeaCoreTableModel();
+  this->tableView->setModel(model);
+
+  // Setup signals
+  this->connect(this->actionOpen, SIGNAL(triggered()),
+                this, SLOT(showFileDialog()));
 }
 
-void MainWindow::slotExit()
+void MainWindow::showFileDialog()
 {
-  qApp->exit();
+  QString fileName =
+    QFileDialog::getOpenFileName(this, tr("Open File"), "", tr("Files (*.csv)"));
+  qDebug() << "Selected file: " << fileName;
+  QFile csvFile(fileName);
+  QStringList lines;
+  if(csvFile.open(QFile::ReadOnly))
+  {
+    qDebug() << "Loading " << fileName;
+    QString data = csvFile.readAll();
+    lines = data.split("\n");
+    csvFile.close();
+  }
+  else
+  {
+    qCritical() << "Unable to open " << fileName;
+  }
+
+  for(QString &curLine : lines)
+  {
+    qDebug() << curLine;
+  }
+
 }

@@ -48,10 +48,12 @@ else()
     )
 
     set(QT_WRAP
+        include/QSeaCoreTableModel.h
         include/MainWindow.h
     )
 
     set(CXX_FILES
+        src/QSeaCoreTableModel.cxx
         src/MainWindow.cxx
         src/main.cxx
     )

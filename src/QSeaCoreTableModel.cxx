@@ -13,26 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#ifndef __MainWindow_H_
-#define __MainWindow_H_
+#include "QSeaCoreTableModel.h"
 
-#include <QMainWindow>
-
-#include "ui_MainWindow.h"
-
-class MainWindow : public QMainWindow, private Ui::MainWindow
+QSeaCoreTableModel::QSeaCoreTableModel( QObject* parent)
+: QAbstractTableModel(parent)
 {
-  Q_OBJECT
-public:
+}
 
-  // Constructor/Destructor
-  MainWindow();
-  virtual ~MainWindow() {};
+QSeaCoreTableModel::~QSeaCoreTableModel()
+{
+}
 
-public slots:
+int
+QSeaCoreTableModel
+::rowCount(const QModelIndex& parent) const
+{
+    return 5;
+}
 
-  void showFileDialog();
+int
+QSeaCoreTableModel
+::columnCount(const QModelIndex& parent) const
+{
+    return 3;
+}
 
-};
+QVariant
+QSeaCoreTableModel
+::data(const QModelIndex& index, int role) const
+{
+    if(role == Qt::DisplayRole)
+    {
+        return QVariant(index.row() * index.column() + role);
+    }
+    return QVariant();
+}
 
-#endif
+QVariant
+QSeaCoreTableModel
+::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    return section;
+}
