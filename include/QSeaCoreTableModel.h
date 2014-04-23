@@ -16,7 +16,11 @@
 #ifndef __QSeaCoreTableModel_H_
 #define __QSeaCoreTableModel_H_
 
+#include <vector>
+
 #include <QAbstractTableModel>
+
+class SeaCore;
 
 class QSeaCoreTableModel : public QAbstractTableModel
 {
@@ -27,12 +31,21 @@ public:
   QSeaCoreTableModel( QObject* parent = 0);
   virtual ~QSeaCoreTableModel();
 
+  // Required functions
   int rowCount(const QModelIndex& parent = QModelIndex()) const;
   int columnCount(const QModelIndex& parent = QModelIndex()) const;
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const;
   QVariant headerData(int section,
                       Qt::Orientation orientation,
                       int role = Qt::DisplayRole) const;
+
+  // Adding cores
+  void setCores( const std::vector<SeaCore>& cores );
+  void getCores( std::vector<SeaCore>& cores ) const;
+
+protected:
+
+  std::vector<SeaCore> cores;
 
 };
 

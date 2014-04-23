@@ -13,32 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#ifndef __MainWindow_H_
-#define __MainWindow_H_
+#ifndef __SeaCore_H_
+#define __SeaCore_H_
 
-#include <QMainWindow>
+#include <string>
+#include <vector>
 
-#include "ui_MainWindow.h"
+class QVariant;
 
-class QVTKWidget;
-class QTableView;
-
-class MainWindow : public QMainWindow, private Ui::MainWindow
+/**
+ * Container class for sea core data.
+ */
+class SeaCore
 {
-  Q_OBJECT
 public:
 
-  // Constructor/Destructor
-  MainWindow();
-  virtual ~MainWindow() {};
+  SeaCore() {};
+  virtual ~SeaCore() {};
 
-public slots:
+  std::string fileName;
+  std::string publication;
+  double latitude;
+  double longitude;
+  std::string proxy;
+  double length;
+  double averageSampling;
+  double maxSampling;
+  std::string datingMethod;
+  std::string notes;
 
-  void showFileDialog();
-
-protected:
-    QVTKWidget* qvtkWidget;
-    QTableView* tableView;
+  void toString(std::string& output);
+  void fromVector(const std::vector<std::string>& vec);
+  QVariant getFieldByIndex(int index) const;
 
 };
 

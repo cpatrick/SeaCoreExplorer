@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+#include "SeaCore.h"
+
 #include "QSeaCoreTableModel.h"
 
 QSeaCoreTableModel::QSeaCoreTableModel( QObject* parent)
@@ -28,14 +30,14 @@ int
 QSeaCoreTableModel
 ::rowCount(const QModelIndex& parent) const
 {
-    return 5;
+    return this->cores.size();
 }
 
 int
 QSeaCoreTableModel
 ::columnCount(const QModelIndex& parent) const
 {
-    return 3;
+    return 10;
 }
 
 QVariant
@@ -44,7 +46,7 @@ QSeaCoreTableModel
 {
     if(role == Qt::DisplayRole)
     {
-        return QVariant(index.row() * index.column() + role);
+        return this->cores[index.row()].getFieldByIndex(index.column());
     }
     return QVariant();
 }
@@ -53,5 +55,47 @@ QVariant
 QSeaCoreTableModel
 ::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    return section;
+    if (role == Qt::DisplayRole)
+    {
+        if (orientation == Qt::Horizontal) {
+            switch (section)
+            {
+            case 0:
+                return QString("Core Name");
+            case 1:
+                return QString("Publication");
+            case 2:
+                return QString("Latitude");
+            case 3:
+                return QString("Longitude");
+            case 4:
+                return QString("Proxy");
+            case 5:
+                return QString("Length");
+            case 6:
+                return QString("Average Sampling");
+            case 7:
+                return QString("Maximum Sampling");
+            case 8:
+                return QString("Dating Method");
+            case 9:
+                return QString("Notes");
+            }
+        }
+    }
+    return QVariant();
+}
+
+void
+QSeaCoreTableModel
+::setCores( const std::vector<SeaCore>& cores )
+{
+    this->cores = cores;
+}
+
+void
+QSeaCoreTableModel
+::getCores( std::vector<SeaCore>& cores ) const
+{
+    cores = this->cores;
 }

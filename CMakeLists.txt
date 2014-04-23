@@ -43,8 +43,14 @@ else()
     find_package(Qt4 REQUIRED)
     include(${QT_USE_FILE})
 
+    find_package(Boost 1.46)
+
     set(UI_FILES
         ui/MainWindow.ui
+    )
+
+    set(RESOURCE_FILES
+        ui/SeaCoreExplorer.qrc
     )
 
     set(QT_WRAP
@@ -53,16 +59,20 @@ else()
     )
 
     set(CXX_FILES
+        src/SeaCore.cxx
         src/QSeaCoreTableModel.cxx
         src/MainWindow.cxx
         src/main.cxx
     )
 
+
     QT4_WRAP_UI(UISrcs ${UI_FILES})
     QT4_WRAP_CPP(MOCSrcs ${QT_WRAP})
+    QT4_ADD_RESOURCES(RESOURCES_RCC ${RESOURCE_FILES})
 
     include_directories(
         ${PROJECT_SOURCE_DIR}/include
+        ${Boost_INCLUDE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
     )
 
@@ -70,6 +80,7 @@ else()
         ${CXX_FILES}
         ${UISrcs}
         ${MOCSrcs}
+        ${RESOURCES_RCC}
     )
 
     target_link_libraries(SeaCoreExplorer ${VTK_LIBRARIES} ${QT_LIBRARIES})

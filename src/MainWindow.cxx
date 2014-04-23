@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+#include <vector>
+#include <iostream>
+#include <fstream>
+
 #include <vtkPolyDataMapper.h>
 #include <vtkQtTableView.h>
 #include <vtkRenderer.h>
@@ -20,45 +24,108 @@
 #include <vtkSphereSource.h>
 #include <vtkConeSource.h>
 #include <vtkSmartPointer.h>
+#include <vtkGeoFileTerrainSource.h>
+#include <vtkGeoProjection.h>
+#include <vtkGeoProjectionSource.h>
+#include <vtkGeoTransform.h>
+#include <vtkGeoTerrain2D.h>
+#include <vtkGeoTerrainNode.h>
+#include <vtkGeoView2D.h>
+#include <vtkGeoAlignedImageSource.h>
+#include <vtkGeoAlignedImageRepresentation.h>
+#include <vtkGeoFileImageSource.h>
+#include <vtkJPEGReader.h>
+#include <vtkCamera.h>
 
 #include <QFileDialog>
+#include <QTableView>
 #include <QFile>
 #include <QDebug>
 
+#include <boost/tokenizer.hpp>
+
+#include "csv_v3.h"
 #include "QSeaCoreTableModel.h"
+#include "SeaCore.h"
 
 #include "MainWindow.h"
+
+static const int NUMBER_OF_TOKENS = 10;
 
 // Constructor
 MainWindow::MainWindow()
 {
   this->setupUi(this);
 
-  //Create a cone
-  vtkSmartPointer<vtkConeSource> coneSource =
-    vtkSmartPointer<vtkConeSource>::New();
-  coneSource->Update();
+  int projNum = 44;
+  this->qvtkWidget = new QVTKWidget;
+  vtkGeoView2D *view = vtkGeoView2D::New();
+  view->SetInteractor(this->qvtkWidget->GetInteractor());
+  this->qvtkWidget->SetRenderWindow(view->GetRenderWindow());
 
-  //Create a mapper and actor
-  vtkSmartPointer<vtkPolyDataMapper> mapper =
-    vtkSmartPointer<vtkPolyDataMapper>::New();
-  mapper->SetInputConnection(coneSource->GetOutputPort());
+  // Create the terrain
+  vtkSmartPointer<vtkGeoTerrain2D> terrain =
+    vtkSmartPointer<vtkGeoTerrain2D>::New();
+  vtkSmartPointer<vtkGeoSource> terrainSource;
+  vtkGeoProjectionSource* projSource = vtkGeoProjectionSource::New();
+  projSource->SetProjection(projNum);
+  projSource->Initialize();
+  vtkSmartPointer<vtkGeoTransform> transform =
+    vtkSmartPointer<vtkGeoTransform>::New();
+  vtkSmartPointer<vtkGeoProjection> proj =
+    vtkSmartPointer<vtkGeoProjection>::New();
+  proj->SetName(vtkGeoProjection::GetProjectionName(projNum));
+  transform->SetDestinationProjection(proj);
+  terrainSource.TakeReference(projSource);
+  terrain->SetSource(terrainSource);
+  view->SetSurface(terrain);
 
-  vtkSmartPointer<vtkActor> actor =
-    vtkSmartPointer<vtkActor>::New();
-  actor->SetMapper(mapper);
+  // Copy BG Image
+  QFile mapResource(":/map.jpg");
+  QString mapPath = QDir::temp().absolutePath() + QString("/map.jpg");
+  mapResource.copy(mapPath.toStdString().c_str());
 
-  //Create a renderer and add the actor
-  vtkSmartPointer<vtkRenderer> renderer =
-    vtkSmartPointer<vtkRenderer>::New();
-  renderer->AddActor(actor);
+  // Create background image
+  vtkSmartPointer<vtkGeoAlignedImageRepresentation> imageRep =
+    vtkSmartPointer<vtkGeoAlignedImageRepresentation>::New();
+  vtkSmartPointer<vtkGeoSource> imageSource;
+  vtkGeoAlignedImageSource* alignedSource = vtkGeoAlignedImageSource::New();
+  vtkSmartPointer<vtkJPEGReader> reader =
+    vtkSmartPointer<vtkJPEGReader>::New();
+  reader->SetFileName(mapPath.toStdString().c_str());
+  reader->Update();
+  alignedSource->SetImage(reader->GetOutput());
+  imageSource.TakeReference(alignedSource);
+  imageSource->Initialize();
+  imageRep->SetSource(imageSource);
+  view->AddRepresentation(imageRep);
+  view->GetRenderer()->GetActiveCamera()->Zoom(0.5);
 
-  // VTK/Qt wedded
-  this->qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
+  this->tableView = new QTableView(this->centralwidget);
 
-  // Setup Model
-  QSeaCoreTableModel* model = new QSeaCoreTableModel();
-  this->tableView->setModel(model);
+  this->verticalLayout->addWidget(this->qvtkWidget);
+  this->verticalLayout->addWidget(this->tableView);
+
+  double vec[3] = {20, 20, 0};
+  double out[3];
+  transform->TransformPoint(vec, out);
+  std::cout << vec[0] << "," << vec[1] << "," << vec[2] << std::endl;
+  std::cout << out[0] << "," << out[1] << "," << out[2] << std::endl;
+
+  vtkSphereSource *sphere = vtkSphereSource::New();
+  sphere->SetCenter(out);
+  sphere->SetRadius(5.0);
+  sphere->SetThetaResolution(18);
+  sphere->SetPhiResolution(18);
+
+  // map to graphics library
+  vtkPolyDataMapper *map = vtkPolyDataMapper::New();
+  map->SetInputData(sphere->GetOutput());
+
+  // actor coordinates geometry, properties, transformation
+  vtkActor *aSphere = vtkActor::New();
+  aSphere->SetMapper(map);
+  view->GetRenderer()->AddActor(aSphere);
 
   // Setup signals
   this->connect(this->actionOpen, SIGNAL(triggered()),
@@ -70,23 +137,29 @@ void MainWindow::showFileDialog()
   QString fileName =
     QFileDialog::getOpenFileName(this, tr("Open File"), "", tr("Files (*.csv)"));
   qDebug() << "Selected file: " << fileName;
-  QFile csvFile(fileName);
-  QStringList lines;
-  if(csvFile.open(QFile::ReadOnly))
+  std::ifstream inputFile(fileName.toStdString());
+  std::string line;
+
+  typedef boost::tokenizer<
+    boost::escaped_list_separator<char> > TokenizerType;
+
+  std::vector<std::string> curCore(NUMBER_OF_TOKENS);
+
+  // Ignore first line
+  std::getline(inputFile, line, '\r');
+
+  std::vector<SeaCore> cores;
+  while(std::getline(inputFile, line, '\r'))
   {
-    qDebug() << "Loading " << fileName;
-    QString data = csvFile.readAll();
-    lines = data.split("\n");
-    csvFile.close();
-  }
-  else
-  {
-    qCritical() << "Unable to open " << fileName;
+    TokenizerType tok(line);
+    curCore.assign(tok.begin(), tok.end());
+    SeaCore s;
+    s.fromVector(curCore);
+    cores.push_back(s);
   }
 
-  for(QString &curLine : lines)
-  {
-    qDebug() << curLine;
-  }
-
+  // Setup Model
+  QSeaCoreTableModel* model = new QSeaCoreTableModel();
+  model->setCores(cores);
+  this->tableView->setModel(model);
 }
