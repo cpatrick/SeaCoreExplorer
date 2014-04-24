@@ -24,18 +24,24 @@
 #include <vtkSphereSource.h>
 #include <vtkConeSource.h>
 #include <vtkSmartPointer.h>
+#include <vtkGeoView2D.h>
 #include <vtkGeoFileTerrainSource.h>
 #include <vtkGeoProjection.h>
 #include <vtkGeoProjectionSource.h>
 #include <vtkGeoTransform.h>
 #include <vtkGeoTerrain2D.h>
 #include <vtkGeoTerrainNode.h>
-#include <vtkGeoView2D.h>
 #include <vtkGeoAlignedImageSource.h>
 #include <vtkGeoAlignedImageRepresentation.h>
 #include <vtkGeoFileImageSource.h>
 #include <vtkJPEGReader.h>
+#include <vtkVariantArray.h>
+#include <vtkRenderedGraphRepresentation.h>
+#include <vtkMutableUndirectedGraph.h>
 #include <vtkCamera.h>
+#include <vtkDoubleArray.h>
+#include <vtkDataSetAttributes.h>
+#include <vtkAnnotationLink.h>
 
 #include <QFileDialog>
 #include <QTableView>
@@ -59,9 +65,9 @@ MainWindow::MainWindow()
 
   int projNum = 44;
   this->qvtkWidget = new QVTKWidget;
-  vtkGeoView2D *view = vtkGeoView2D::New();
-  view->SetInteractor(this->qvtkWidget->GetInteractor());
-  this->qvtkWidget->SetRenderWindow(view->GetRenderWindow());
+  this->view = vtkGeoView2D::New();
+  this->view->SetInteractor(this->qvtkWidget->GetInteractor());
+  this->qvtkWidget->SetRenderWindow(this->view->GetRenderWindow());
 
   // Create the terrain
   vtkSmartPointer<vtkGeoTerrain2D> terrain =
@@ -78,7 +84,7 @@ MainWindow::MainWindow()
   transform->SetDestinationProjection(proj);
   terrainSource.TakeReference(projSource);
   terrain->SetSource(terrainSource);
-  view->SetSurface(terrain);
+  this->view->SetSurface(terrain);
 
   // Copy BG Image
   QFile mapResource(":/map.jpg");
@@ -98,34 +104,14 @@ MainWindow::MainWindow()
   imageSource.TakeReference(alignedSource);
   imageSource->Initialize();
   imageRep->SetSource(imageSource);
-  view->AddRepresentation(imageRep);
-  view->GetRenderer()->GetActiveCamera()->Zoom(0.5);
+  this->view->AddRepresentation(imageRep);
 
+
+
+  // Add the widgets to the layout.
   this->tableView = new QTableView(this->centralwidget);
-
   this->verticalLayout->addWidget(this->qvtkWidget);
   this->verticalLayout->addWidget(this->tableView);
-
-  double vec[3] = {20, 20, 0};
-  double out[3];
-  transform->TransformPoint(vec, out);
-  std::cout << vec[0] << "," << vec[1] << "," << vec[2] << std::endl;
-  std::cout << out[0] << "," << out[1] << "," << out[2] << std::endl;
-
-  vtkSphereSource *sphere = vtkSphereSource::New();
-  sphere->SetCenter(out);
-  sphere->SetRadius(5.0);
-  sphere->SetThetaResolution(18);
-  sphere->SetPhiResolution(18);
-
-  // map to graphics library
-  vtkPolyDataMapper *map = vtkPolyDataMapper::New();
-  map->SetInputData(sphere->GetOutput());
-
-  // actor coordinates geometry, properties, transformation
-  vtkActor *aSphere = vtkActor::New();
-  aSphere->SetMapper(map);
-  view->GetRenderer()->AddActor(aSphere);
 
   // Setup signals
   this->connect(this->actionOpen, SIGNAL(triggered()),
@@ -148,18 +134,65 @@ void MainWindow::showFileDialog()
   // Ignore first line
   std::getline(inputFile, line, '\r');
 
-  std::vector<SeaCore> cores;
   while(std::getline(inputFile, line, '\r'))
   {
     TokenizerType tok(line);
     curCore.assign(tok.begin(), tok.end());
     SeaCore s;
     s.fromVector(curCore);
-    cores.push_back(s);
+    this->cores.push_back(s);
   }
 
   // Setup Model
   QSeaCoreTableModel* model = new QSeaCoreTableModel();
   model->setCores(cores);
   this->tableView->setModel(model);
+
+  this->drawCorePoints();
+}
+
+void MainWindow::drawCorePoints()
+{
+  vtkSmartPointer<vtkMutableUndirectedGraph > graph =
+  vtkSmartPointer<vtkMutableUndirectedGraph >::New();
+  vtkSmartPointer<vtkDoubleArray> latArr =
+    vtkSmartPointer<vtkDoubleArray>::New();
+  vtkSmartPointer<vtkDoubleArray> lonArr =
+    vtkSmartPointer<vtkDoubleArray>::New();
+
+  latArr->SetNumberOfTuples(this->cores.size());
+  lonArr->SetNumberOfTuples(this->cores.size());
+  latArr->SetName("latitude");
+  lonArr->SetName("longitude");
+
+  for(int i = 0; i < this->cores.size(); ++i)
+  {
+    latArr->SetValue(i, this->cores[i].latitude);
+    lonArr->SetValue(i, this->cores[i].longitude);
+    graph->AddVertex();
+  }
+
+  graph->GetVertexData()->AddArray(latArr);
+  graph->GetVertexData()->AddArray(lonArr);
+
+  vtkSmartPointer<vtkRenderedGraphRepresentation> graphRep =
+    vtkSmartPointer<vtkRenderedGraphRepresentation>::New();
+  graphRep->SetInputData(graph);
+  graphRep->SetEdgeVisibility(false);
+  graphRep->SetLayoutStrategyToAssignCoordinates("longitude", "latitude");
+
+  vtkSmartPointer<vtkAnnotationLink> link = graphRep->GetAnnotationLink();
+  link->AddObserver(vtkCommand::AnnotationChangedEvent, this,
+    &MainWindow::selectionCallback);
+
+  this->view->AddRepresentation(graphRep);
+
+  this->view->Render();
+}
+
+void MainWindow::selectionCallback(vtkObject* caller,
+  long unsigned int eventId,
+  void* callData)
+{
+  std::cout << "foo" << std::endl;
 }

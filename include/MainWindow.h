@@ -16,9 +16,18 @@
 #ifndef __MainWindow_H_
 #define __MainWindow_H_
 
+#include <vector>
+
 #include <QMainWindow>
 
+class vtkGeoView2D;
+class vtkMutableUndirectedGraph;
+class vtkRenderedGraphRepresentation;
+
+#include "SeaCore.h"
+
 #include "ui_MainWindow.h"
+
 
 class QVTKWidget;
 class QTableView;
@@ -35,11 +44,16 @@ public:
 public slots:
 
   void showFileDialog();
+  void drawCorePoints();
 
 protected:
+
+    void selectionCallback(vtkObject * obj, unsigned long id, void *ptr);
+
     QVTKWidget* qvtkWidget;
     QTableView* tableView;
-
+    std::vector<SeaCore> cores;
+    vtkGeoView2D* view;
 };
 
 #endif
