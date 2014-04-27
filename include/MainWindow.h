@@ -45,6 +45,7 @@ public slots:
 
   void showFileDialog();
   void drawCorePoints();
+  void drawGraph();
 
 protected:
 

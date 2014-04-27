@@ -41,6 +41,7 @@ public:
   double maxSampling;
   std::string datingMethod;
   std::string notes;
+  std::string coreFile;
 
   void toString(std::string& output);
   void fromVector(const std::vector<std::string>& vec);

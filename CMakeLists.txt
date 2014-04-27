@@ -58,13 +58,15 @@ else()
         include/MainWindow.h
     )
 
-    set(CXX_FILES
+    set(Core_CXX_FILES
         src/SeaCore.cxx
+    )
+
+    set(SeaCoreExplorer_CXX_FILES
         src/QSeaCoreTableModel.cxx
         src/MainWindow.cxx
         src/main.cxx
     )
-
 
     QT4_WRAP_UI(UISrcs ${UI_FILES})
     QT4_WRAP_CPP(MOCSrcs ${QT_WRAP})
@@ -76,13 +78,25 @@ else()
         ${CMAKE_CURRENT_BINARY_DIR}
     )
 
+    set(SeaCoreComparer_CXX_FILES
+        src/SeaCoreComparer.cxx
+    )
+
     add_executable(SeaCoreExplorer
-        ${CXX_FILES}
+        ${Core_CXX_FILES}
+        ${SeaCoreExplorer_CXX_FILES}
         ${UISrcs}
         ${MOCSrcs}
         ${RESOURCES_RCC}
     )
 
     target_link_libraries(SeaCoreExplorer ${VTK_LIBRARIES} ${QT_LIBRARIES})
+
+    add_executable(SeaCoreComparer
+        ${Core_CXX_FILES}
+        ${SeaCoreComparer_CXX_FILES}
+    )
+
+    target_link_libraries(SeaCoreComparer ${VTK_LIBRARIES})
 
 endif()

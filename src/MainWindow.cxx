@@ -42,6 +42,13 @@
 #include <vtkDoubleArray.h>
 #include <vtkDataSetAttributes.h>
 #include <vtkAnnotationLink.h>
+#include <vtkPlot.h>
+#include <vtkDelimitedTextReader.h>
+#include <vtkChartXY.h>
+#include <vtkContextView.h>
+#include <vtkPen.h>
+#include <vtkContextScene.h>
+#include <vtkTable.h>
 
 #include <QFileDialog>
 #include <QTableView>
@@ -106,8 +113,6 @@ MainWindow::MainWindow()
   imageRep->SetSource(imageSource);
   this->view->AddRepresentation(imageRep);
 
-
-
   // Add the widgets to the layout.
   this->tableView = new QTableView(this->centralwidget);
   this->verticalLayout->addWidget(this->qvtkWidget);
@@ -123,6 +128,8 @@ void MainWindow::showFileDialog()
   QString fileName =
     QFileDialog::getOpenFileName(this, tr("Open File"), "", tr("Files (*.csv)"));
   qDebug() << "Selected file: " << fileName;
+  QFileInfo fileInfo(fileName);
+  QString baseFolder = fileInfo.absolutePath();
   std::ifstream inputFile(fileName.toStdString());
   std::string line;
 
@@ -140,6 +147,7 @@ void MainWindow::showFileDialog()
     curCore.assign(tok.begin(), tok.end());
     SeaCore s;
     s.fromVector(curCore);
+    s.coreFile = baseFolder.toStdString() + "/" + s.fileName + ".txt";
     this->cores.push_back(s);
   }
 
@@ -149,6 +157,43 @@ void MainWindow::showFileDialog()
   this->tableView->setModel(model);
 
   this->drawCorePoints();
+
+  std::cout << cores[2].coreFile << std::endl;
+
+  //this->drawGraph();
+}
+
+void MainWindow::drawGraph()
+{
+  // Load a some points and render a graph
+  vtkSmartPointer<vtkDelimitedTextReader> reader =
+    vtkSmartPointer<vtkDelimitedTextReader>::New();
+  reader->SetFileName(cores[2].coreFile.c_str());
+  reader->DetectNumericColumnsOn();
+  reader->SetFieldDelimiterCharacters("\t");
+  reader->Update();
+  vtkTable* table = reader->GetOutput();
+  table->Dump();
+
+  // Set up the view
+  vtkSmartPointer<vtkContextView> plotView =
+    vtkSmartPointer<vtkContextView>::New();
+  plotView->GetRenderer()->SetBackground(1.0, 1.0, 1.0);
+
+  // Add multiple line plots, setting the colors etc
+  vtkSmartPointer<vtkChartXY> chart =
+    vtkSmartPointer<vtkChartXY>::New();
+  plotView->GetScene()->AddItem(chart);
+  vtkPlot *line = chart->AddPlot(vtkChart::LINE);
+  line->SetInputData(table, 0, 1);
+  line->SetColor(0, 255, 0, 255);
+  line->SetWidth(2.0);
+  line->GetPen()->SetLineType(4);//For dotted line, can be from 2 to 5 for different dot patterns
+
+  // Start interactor
+  plotView->Render();
+  //plotView->GetInteractor()->Initialize();
+  //plotView->GetInteractor()->Start();
 }
 
 void MainWindow::drawCorePoints()
@@ -188,6 +233,11 @@ void MainWindow::drawCorePoints()
   this->view->AddRepresentation(graphRep);
 
   this->view->Render();
+
+  //QString coreFile = this->baseFolder + QString("/") +
+  //  QString(this->cores[2].fileName.c_str()) + QString(".txt");
+
+  //qDebug() << coreFile;
 }
 
 void MainWindow::selectionCallback(vtkObject* caller,
