@@ -38,22 +38,33 @@
 #include <vtkArrayIterator.h>
 #include <vtkArrayIteratorTemplate.h>
 #include <vtkDataSetAttributes.h>
+#include <vtkBlockItem.h>
+#include <vtkIdTypeArray.h>
+#include <vtkRect.h>
+#include <vtkVector.h>
 
 vtkSmartPointer<vtkAnnotationLink> annotationLink;
+vtkPlot *line;
+vtkPlot *line2;
 
 static void selectionCallback(vtkObject* obj, unsigned long, void*, void*)
 {
-  vtkSmartPointer<vtkSelection> annSel = annotationLink->GetCurrentSelection();
-  vtkSmartPointer<vtkAbstractArray> idxArr = annSel->GetNode(0)->GetSelectionList();
-  vtkSmartPointer<vtkDataSetAttributes> selData =
-    annSel->GetNode(0)->GetSelectionData();
-  std::cout << "Number of Nodes: " << annSel->GetNumberOfNodes() << std::endl;
-  vtkSmartPointer<vtkDataArray> data = vtkDataArray::SafeDownCast(selData->GetArray(0));
   vtkArrayIteratorTemplate<vtkIdType>* iter
-    = static_cast<vtkArrayIteratorTemplate<vtkIdType>*>(data->NewIterator());
+    = static_cast<vtkArrayIteratorTemplate<vtkIdType>*>(line->GetSelection()->NewIterator());
   for(vtkIdType i = 0; i < iter->GetNumberOfValues(); ++i)
   {
     std::cout << iter->GetValue(i) << std::endl;
+  }
+  iter->Delete();
+  iter = NULL;
+  std::cout << "***" << std::endl;
+  iter
+    = static_cast<vtkArrayIteratorTemplate<vtkIdType>*>(line2->GetSelection()->NewIterator());
+  for(vtkIdType i = 0; i < iter->GetNumberOfValues(); ++i)
+  {
+    vtkIdType indx = iter->GetValue(i);
+    std::cout << line2->GetInput()->GetValue(indx, 0) << ","
+              << line2->GetInput()->GetValue(indx, 1) << std::endl;
   }
   iter->Delete();
 }
@@ -86,15 +97,16 @@ int main(int argc, char const *argv[])
   // Add multiple line plots, setting the colors etc
   vtkSmartPointer<vtkChartXY> chart =
     vtkSmartPointer<vtkChartXY>::New();
-  chart->GetAxis(vtkAxis::LEFT)->SetTitle("Delta 18O");
-  chart->GetAxis(vtkAxis::BOTTOM)->SetTitle("Depth in Seabed");
+  plotView->GetRenderWindow()->SetSize(800,800);
+  chart->GetAxis(vtkAxis::LEFT)->SetTitle("Delta 18O (Climate Proxy)");
+  chart->GetAxis(vtkAxis::BOTTOM)->SetTitle("Depth in Seabed (Time Proxy)");
   plotView->GetScene()->AddItem(chart);
-  vtkPlot *line = chart->AddPlot(vtkChart::STACKED);
+  line = chart->AddPlot(vtkChart::STACKED);
   line->SetInputData(table, 0, 1);
   line->SetColor(21, 72, 144, 200);
   line->SetWidth(2.0);
 
-  vtkPlot* line2 = chart->AddPlot(vtkChart::STACKED);
+  line2 = chart->AddPlot(vtkChart::STACKED);
   line2->SetInputData(table2, 0, 1);
   line2->SetColor(255, 102, 0, 200);
   line2->SetWidth(2.0);
@@ -105,6 +117,17 @@ int main(int argc, char const *argv[])
   vtkCallbackCommand* command = vtkCallbackCommand::New();
   command->SetCallback(selectionCallback);
   annotationLink->AddObserver(vtkCommand::AnnotationChangedEvent, command, 1.0);
+
+  vtkSmartPointer<vtkBlockItem> blockTest =
+    vtkSmartPointer<vtkBlockItem>::New();
+  blockTest->SetDimensions(0, 0, 100, 100);
+
+  vtkSmartPointer<vtkBlockItem> blockTest2 =
+    vtkSmartPointer<vtkBlockItem>::New();
+  blockTest2->SetDimensions(200, 200, 100, 100);
+
+  plotView->GetScene()->AddItem(blockTest);
+  plotView->GetScene()->AddItem(blockTest2);
 
   // Start interactor
   plotView->GetInteractor()->Initialize();
