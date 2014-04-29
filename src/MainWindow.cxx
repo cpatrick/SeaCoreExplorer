@@ -16,6 +16,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <set>
 
 #include <vtkPolyDataMapper.h>
 #include <vtkQtTableView.h>
@@ -53,6 +54,8 @@
 #include <vtkSelection.h>
 #include <vtkSelectionNode.h>
 
+#include <QVTKWidget.h>
+
 #include <QFileDialog>
 #include <QTableView>
 #include <QFile>
@@ -72,6 +75,8 @@ static const int NUMBER_OF_TOKENS = 10;
 MainWindow::MainWindow()
 {
   this->setupUi(this);
+
+  this->tableSelecting = false;
 
   int projNum = 44;
   this->qvtkWidget = new QVTKWidget;
@@ -116,14 +121,23 @@ MainWindow::MainWindow()
   imageRep->SetSource(imageSource);
   this->view->AddRepresentation(imageRep);
 
-  // Add the widgets to the layout.
+
   this->tableView = new QTableView(this->centralwidget);
-  this->verticalLayout->addWidget(this->qvtkWidget);
-  this->verticalLayout->addWidget(this->tableView);
+
+  // Add the widgets to the layout.
+  QVBoxLayout* curLayout = new QVBoxLayout;
+  curLayout->addWidget(this->qvtkWidget);
+  this->mapFrame->setLayout(curLayout);
+
+  curLayout = new QVBoxLayout;
+  curLayout->addWidget(this->tableView);
+  this->tableFrame->setLayout(curLayout);
 
   // Setup signals
   this->connect(this->actionOpen, SIGNAL(triggered()),
                 this, SLOT(showFileDialog()));
+  this->connect(this->compareButton, SIGNAL(pressed()),
+                this, SLOT(compareCores()));
 }
 
 void MainWindow::showFileDialog()
@@ -158,12 +172,13 @@ void MainWindow::showFileDialog()
   QSeaCoreTableModel* model = new QSeaCoreTableModel();
   model->setCores(cores);
   this->tableView->setModel(model);
+  //connect( this->tableView, SIGNAL(clicked(QModelIndex)), this, SLOT(onClicked(QModelIndex)) );
+  connect(this->tableView->selectionModel(),
+    SIGNAL(selectionChanged(const QItemSelection &, const QItemSelection &)),
+    this,
+    SLOT(onTableSelect(const QItemSelection &, const QItemSelection &)));
 
   this->drawCorePoints();
-
-  std::cout << cores[2].coreFile << std::endl;
-
-  //this->drawGraph();
 }
 
 void MainWindow::drawGraph()
@@ -236,11 +251,38 @@ void MainWindow::drawCorePoints()
   this->view->AddRepresentation(graphRep);
 
   this->view->Render();
+}
 
-  //QString coreFile = this->baseFolder + QString("/") +
-  //  QString(this->cores[2].fileName.c_str()) + QString(".txt");
+void MainWindow::onTableSelect(const QItemSelection &, const QItemSelection &)
+{
+  std::set<int> rows;
+  vtkSmartPointer<vtkSelection> sel = vtkSmartPointer<vtkSelection>::New();
+  vtkSmartPointer<vtkSelectionNode> selNode = vtkSmartPointer<vtkSelectionNode>::New();
+  selNode->SetFieldType(vtkSelectionNode::VERTEX);
+  selNode->SetContentType(vtkSelectionNode::INDICES);
+  vtkSmartPointer<vtkIdTypeArray> arr = vtkSmartPointer<vtkIdTypeArray>::New();
+  arr->SetName("user");
+  arr->SetNumberOfComponents(1);
+  QModelIndexList indexes = this->tableView->selectionModel()->selection().indexes();
+  for (int i = 0; i < indexes.count(); ++i)
+  {
+    if(rows.count(indexes.at(i).row()) == 0)
+    {
+      arr->InsertNextValue(indexes.at(i).row());
+      rows.insert(indexes.at(i).row());
+    }
 
-  //qDebug() << coreFile;
+  }
+  selNode->SetSelectionList(arr);
+  sel->AddNode(selNode);
+
+  this->tableSelecting = true;
+  this->view->GetRepresentation(1)->GetAnnotationLink()->SetCurrentSelection(sel);
+}
+
+void MainWindow::compareCores()
+{
+  std::cout << "foo" << std::endl;
 }
 
 void MainWindow::selectionCallback(vtkObject* caller,
@@ -261,24 +303,20 @@ void MainWindow::selectionCallback(vtkObject* caller,
     edges = selection->GetNode(0);
     }
 
-  if(selection->GetNode(1)->GetFieldType() == vtkSelectionNode::VERTEX)
-    {
-    vertices = selection->GetNode(1);
-    }
-  else if(selection->GetNode(1)->GetFieldType() == vtkSelectionNode::EDGE)
-    {
-    edges = selection->GetNode(1);
-    }
-
   vtkIdTypeArray* vertexList = vtkIdTypeArray::SafeDownCast(vertices->GetSelectionList());
-  std::cout << "There are " << vertexList->GetNumberOfTuples() << " vertices selected." << std::endl;
+  if(this->tableSelecting)
+  {
+    this->view->Render();
+    this->tableSelecting = false;
+    return;
+  }
   for(vtkIdType i = 0; i < vertexList->GetNumberOfTuples(); i++)
   {
     int curValue = vertexList->GetValue(i);
-    std::cout << curValue << std::endl;
     if(curValue < 241) // HACK above this are NaNs in Lat-Lon.
     {
       this->tableView->selectRow(curValue);
     }
   }
+  this->tableSelecting = false;
 }

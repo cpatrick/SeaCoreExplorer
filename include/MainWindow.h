@@ -20,6 +20,7 @@
 
 #include <QMainWindow>
 
+class vtkObject;
 class vtkGeoView2D;
 class vtkMutableUndirectedGraph;
 class vtkRenderedGraphRepresentation;
@@ -31,6 +32,7 @@ class vtkAnnotationLink;
 
 class QVTKWidget;
 class QTableView;
+class QModelIndex;
 
 class MainWindow : public QMainWindow, private Ui::MainWindow
 {
@@ -45,7 +47,9 @@ public slots:
 
   void showFileDialog();
   void drawCorePoints();
+  void onTableSelect(const QItemSelection &, const QItemSelection &);
   void drawGraph();
+  void compareCores();
 
 protected:
 
@@ -55,6 +59,8 @@ protected:
   QTableView* tableView;
   std::vector<SeaCore> cores;
   vtkGeoView2D* view;
+
+  bool tableSelecting;
 
 };
 
