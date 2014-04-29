@@ -60,6 +60,7 @@
 #include <QTableView>
 #include <QFile>
 #include <QDebug>
+#include <QProcess>
 
 #include <boost/tokenizer.hpp>
 
@@ -282,7 +283,26 @@ void MainWindow::onTableSelect(const QItemSelection &, const QItemSelection &)
 
 void MainWindow::compareCores()
 {
-  std::cout << "foo" << std::endl;
+  QModelIndexList indexes = this->tableView->selectionModel()->selection().indexes();
+  std::set<int> rows;
+  for (int i = 0; i < indexes.count(); ++i)
+  {
+    if(rows.count(indexes.at(i).row()) == 0)
+    {
+      rows.insert(indexes.at(i).row());
+    }
+  }
+
+  std::set<int>::iterator itr = rows.begin();
+  int first = *itr++;
+  int second = *itr;
+
+  QString program = QCoreApplication::applicationDirPath() + QString("/SeaCoreComparer");
+  QStringList arguments;
+  arguments << this->cores[first].coreFile.c_str() << this->cores[second].coreFile.c_str();
+
+  QProcess *myProcess = new QProcess(this);
+  myProcess->start(program, arguments);
 }
 
 void MainWindow::selectionCallback(vtkObject* caller,
