@@ -23,11 +23,11 @@
 class vtkGeoView2D;
 class vtkMutableUndirectedGraph;
 class vtkRenderedGraphRepresentation;
+class vtkAnnotationLink;
 
 #include "SeaCore.h"
 
 #include "ui_MainWindow.h"
-
 
 class QVTKWidget;
 class QTableView;
@@ -49,12 +49,13 @@ public slots:
 
 protected:
 
-    void selectionCallback(vtkObject * obj, unsigned long id, void *ptr);
+  void selectionCallback(vtkObject * obj, unsigned long id, void *ptr);
 
-    QVTKWidget* qvtkWidget;
-    QTableView* tableView;
-    std::vector<SeaCore> cores;
-    vtkGeoView2D* view;
+  QVTKWidget* qvtkWidget;
+  QTableView* tableView;
+  std::vector<SeaCore> cores;
+  vtkGeoView2D* view;
+
 };
 
 #endif

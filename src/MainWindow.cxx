@@ -49,6 +49,9 @@
 #include <vtkPen.h>
 #include <vtkContextScene.h>
 #include <vtkTable.h>
+#include <vtkIdTypeArray.h>
+#include <vtkSelection.h>
+#include <vtkSelectionNode.h>
 
 #include <QFileDialog>
 #include <QTableView>
@@ -244,5 +247,38 @@ void MainWindow::selectionCallback(vtkObject* caller,
   long unsigned int eventId,
   void* callData)
 {
-  std::cout << "foo" << std::endl;
+  vtkAnnotationLink* annotationLink = static_cast<vtkAnnotationLink*>(caller);
+
+  vtkSelection* selection = annotationLink->GetCurrentSelection();
+  vtkSelectionNode* vertices;
+  vtkSelectionNode* edges;
+  if(selection->GetNode(0)->GetFieldType() == vtkSelectionNode::VERTEX)
+    {
+    vertices = selection->GetNode(0);
+    }
+  else if(selection->GetNode(0)->GetFieldType() == vtkSelectionNode::EDGE)
+    {
+    edges = selection->GetNode(0);
+    }
+
+  if(selection->GetNode(1)->GetFieldType() == vtkSelectionNode::VERTEX)
+    {
+    vertices = selection->GetNode(1);
+    }
+  else if(selection->GetNode(1)->GetFieldType() == vtkSelectionNode::EDGE)
+    {
+    edges = selection->GetNode(1);
+    }
+
+  vtkIdTypeArray* vertexList = vtkIdTypeArray::SafeDownCast(vertices->GetSelectionList());
+  std::cout << "There are " << vertexList->GetNumberOfTuples() << " vertices selected." << std::endl;
+  for(vtkIdType i = 0; i < vertexList->GetNumberOfTuples(); i++)
+  {
+    int curValue = vertexList->GetValue(i);
+    std::cout << curValue << std::endl;
+    if(curValue < 241) // HACK above this are NaNs in Lat-Lon.
+    {
+      this->tableView->selectRow(curValue);
+    }
+  }
 }
